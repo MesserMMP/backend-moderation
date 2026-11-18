@@ -6,6 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 
+from database import lifespan
 from repositories.predictions import PredictionRepository
 from routers.predictions import router
 from services.moderation import ModerationService
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Модерация объявлений", version="1.0.0")
+    app = FastAPI(title="Модерация объявлений", version="1.1.0", lifespan=lifespan)
     app.state.moderation_service = ModerationService(PredictionRepository())
     app.include_router(router)
 
@@ -40,7 +41,8 @@ def create_app() -> FastAPI:
         if app.openapi_schema is None:
             schema = get_openapi(title=app.title, version=app.version, routes=app.routes)
             # Ошибки входных данных возвращаются как 400, а не стандартный 422.
-            schema["paths"]["/predict"]["post"]["responses"].pop("422", None)
+            for path in ("/predict", "/simple_predict"):
+                schema["paths"][path]["post"]["responses"].pop("422", None)
             app.openapi_schema = schema
         return app.openapi_schema
 

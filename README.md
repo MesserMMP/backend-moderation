@@ -107,3 +107,39 @@ ruff format --check .
 | Фикстуры и параметризация | `tests/conftest.py`, `pytest.mark.parametrize` |
 
 Условие: [ДЗ-1 в Stepik](https://stepik.org/lesson/2095465/step/1?unit=2126247).
+
+## ДЗ-3. Проверка по идентификатору
+
+Из корня репозитория запустите PostgreSQL 16 и примените миграции:
+
+```bash
+docker compose up -d --wait
+pgmigrate -d db -t latest migrate
+fastapi dev
+```
+
+Для установки зависимостей мигратора нужны заголовки libpq и команда
+`pg_config` в PATH. Локальные параметры подключения заданы в
+`db/migrations.yml`. Сервис и тесты используют ту же БД по умолчанию.
+Для другого сервера задайте `DATABASE_URL` и соответствующее подключение мигратора.
+
+Создайте продавца и его объявление в локальной базе:
+
+```sql
+WITH seller AS (
+    INSERT INTO users (first_name, last_name) VALUES ('Анна', 'Иванова')
+    RETURNING id
+)
+INSERT INTO items (seller_id, name, description, category, images_qty)
+SELECT id, 'Гитара', 'Шесть струн', 1, 0 FROM seller
+RETURNING id;
+```
+
+Подставьте полученный идентификатор в запрос
+`curl -X POST 'http://localhost:8000/simple_predict?item_id=1'`.
+Для объявления из примера ответ — `true`. Сервис соединяет таблицы
+по продавцу и применяет то же правило, что и `/predict`.
+Для неизвестного объявления возвращается 404, для некорректного ID — 400.
+
+После миграции запустите `python -m pytest tests`. Тесты репозиториев и нового
+обработчика используют PostgreSQL и откатывают свои записи после каждого случая.
